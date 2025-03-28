@@ -8,30 +8,36 @@ use crate::{
     StdbDisonnectedEvent, UpdateEvent, channel_receiver::AppExtensions,
 };
 
+/// A function that builds a connection to the database.
 pub type FnBuildConnection<T> = fn(
     Sender<StdbConnectedEvent>,
     Sender<StdbDisonnectedEvent>,
     Sender<StdbConnectionErrorEvent>,
     &mut App,
 ) -> T;
+/// A function that registers callbacks for events.
 pub type FnRegisterCallbacks<T> = fn(&StdbPlugin<T>, &mut App, &<T as DbContext>::DbView);
 
+/// A plugin for SpacetimeDB connections.
 pub struct StdbPlugin<T: DbContext> {
     connection_builder: Option<FnBuildConnection<T>>,
     register_events: Option<FnRegisterCallbacks<T>>,
 }
 
 impl<TConnection: DbContext> StdbPlugin<TConnection> {
+    /// Adds your connection builder function, it will be called when the plugin is built.
     pub fn with_connection(mut self, build_connection: FnBuildConnection<TConnection>) -> Self {
         self.connection_builder = Some(build_connection);
         self
     }
 
+    /// Adds a function to register all events required by a Bevy application
     pub fn with_events(mut self, register_callbacks: FnRegisterCallbacks<TConnection>) -> Self {
         self.register_events = Some(register_callbacks);
         self
     }
 
+    /// Register a Bevy event of type InsertEvent<TRow> for the `on_insert` event on the provided table.
     pub fn on_insert<TRow>(&self, app: &mut App, table: impl Table<Row = TRow>) -> &Self
     where
         TRow: Send + Sync + Clone + 'static,
@@ -47,6 +53,7 @@ impl<TConnection: DbContext> StdbPlugin<TConnection> {
         self
     }
 
+    /// Register a Bevy event of type DeleteEvent<TRow> for the `on_delete` event on the provided table.
     pub fn on_delete<TRow>(&self, app: &mut App, table: impl Table<Row = TRow>) -> &Self
     where
         TRow: Send + Sync + Clone + 'static,
@@ -62,6 +69,7 @@ impl<TConnection: DbContext> StdbPlugin<TConnection> {
         self
     }
 
+    /// Register a Bevy event of type UpdateEvent<TRow> for the `on_update` event on the provided table.
     pub fn on_update<TRow, TTable>(&self, app: &mut App, table: TTable) -> &Self
     where
         TRow: Send + Sync + Clone + 'static,
@@ -110,6 +118,6 @@ impl<T: DbContext + Send + Sync + 'static> Plugin for StdbPlugin<T> {
             register_callbacks(self, app, conn.db());
         }
 
-        app.insert_resource(StdbConnection { conn });
+        app.insert_resource(StdbConnection::new(conn));
     }
 }

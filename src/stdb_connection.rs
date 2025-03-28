@@ -5,7 +5,15 @@ use spacetimedb_sdk::{ConnectionId, DbContext, Identity, Result};
 /// A connection to the SpacetimeDB server, as a Bevy resource.
 /// This struct is a wrapper around a concrete-typed `DbContext`.
 pub struct StdbConnection<T: DbContext> {
-    pub conn: T,
+    /// The underlying connection.
+    conn: T,
+}
+
+impl<T: DbContext> StdbConnection<T> {
+    /// Create a new connection to the SpacetimeDB server.
+    pub fn new(conn: T) -> Self {
+        Self { conn }
+    }
 }
 
 impl<T: DbContext> StdbConnection<T> {

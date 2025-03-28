@@ -1,31 +1,43 @@
 use bevy::prelude::Event;
 use spacetimedb_sdk::Error;
 
+/// An event that is triggered when a connection to SpacetimeDB is established.
 #[derive(Event)]
 pub struct StdbConnectedEvent;
 
+/// An event that is triggered when a connection to SpacetimeDB is lost.
 #[derive(Event)]
 pub struct StdbDisonnectedEvent {
+    /// The error that caused the disconnection, if any.
     pub err: Option<Error>,
 }
 
+/// An event that is triggered when a connection to SpacetimeDB encounters an error.
 #[derive(Event)]
 pub struct StdbConnectionErrorEvent {
+    /// The error that occurred.
     pub err: Error,
 }
 
+/// An event that is triggered when a row is inserted into a table.
 #[derive(Event)]
 pub struct InsertEvent<T> {
+    /// The row that was inserted.
     pub row: T,
 }
 
+/// An event that is triggered when a row is deleted from a table.
 #[derive(Event)]
 pub struct DeleteEvent<T> {
+    /// The row that was deleted.
     pub row: T,
 }
 
+/// An event that is triggered when a row is updated in a table.
 #[derive(Event)]
 pub struct UpdateEvent<T> {
+    /// The old row.
     pub old: T,
+    /// The new row.
     pub new: T,
 }
