@@ -22,7 +22,7 @@ impl AppExtensions for App {
         );
 
         self.add_event::<T>();
-        self.add_systems(Update, channel_to_event::<T>);
+        self.add_systems(PreUpdate, channel_to_event::<T>);
         self.insert_resource(ChannelReceiver(Mutex::new(receiver)));
         self
     }

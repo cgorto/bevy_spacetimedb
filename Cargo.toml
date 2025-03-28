@@ -1,5 +1,8 @@
 [package]
 name = "bevy_spacetimedb"
+description = "USe SpacetimeDB in your Bevy application"
+repository = "https://github.com/JulienLavocat/bevy_spacetimedb"
+readme = "README.md"
 version = "0.1.0"
 edition = "2024"
 
