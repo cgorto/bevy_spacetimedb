@@ -3,6 +3,8 @@ mod events;
 mod plugin;
 mod stdb_connection;
 
+pub use spacetimedb_sdk;
+
 pub use events::*;
 pub use plugin::*;
 pub use stdb_connection::*;
