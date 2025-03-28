@@ -1,0 +1,8 @@
+[package]
+name = "bevy_spacetimedb"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+spacetimedb-sdk = "1.0.1"
+bevy = "0.15.3"
