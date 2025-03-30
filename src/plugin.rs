@@ -4,8 +4,8 @@ use bevy::app::{App, Plugin};
 use spacetimedb_sdk::{DbContext, Table, TableWithPrimaryKey};
 
 use crate::{
-    DeleteEvent, InsertEvent, StdbConnectedEvent, StdbConnection, StdbConnectionErrorEvent,
-    StdbDisonnectedEvent, UpdateEvent, channel_receiver::AppExtensions,
+    DeleteEvent, InsertEvent, ReducerResultEvent, StdbConnectedEvent, StdbConnection,
+    StdbConnectionErrorEvent, StdbDisonnectedEvent, UpdateEvent, channel_receiver::AppExtensions,
 };
 
 /// A function that builds a connection to the database.
@@ -16,7 +16,8 @@ pub type FnBuildConnection<T> = fn(
     &mut App,
 ) -> T;
 /// A function that registers callbacks for events.
-pub type FnRegisterCallbacks<T> = fn(&StdbPlugin<T>, &mut App, &<T as DbContext>::DbView);
+pub type FnRegisterCallbacks<T> =
+    fn(&StdbPlugin<T>, &mut App, &<T as DbContext>::DbView, &<T as DbContext>::Reducers);
 
 /// A plugin for SpacetimeDB connections.
 pub struct StdbPlugin<T: DbContext> {
@@ -88,6 +89,17 @@ impl<TConnection: DbContext> StdbPlugin<TConnection> {
 
         self
     }
+
+    /// Register a Bevy event of type ReducerResultEvent<TReducer> for the `on_<reducer_name>` event on the provided reducers.
+    pub fn reducer_event<TReducer>(&self, app: &mut App) -> Sender<ReducerResultEvent<TReducer>>
+    where
+        TReducer: Send + Sync + Clone + 'static,
+    {
+        let (send, recv) = channel::<ReducerResultEvent<TReducer>>();
+        app.add_event_channel(recv);
+
+        send
+    }
 }
 
 impl<T: DbContext> Default for StdbPlugin<T> {
@@ -115,7 +127,7 @@ impl<T: DbContext + Send + Sync + 'static> Plugin for StdbPlugin<T> {
         let conn = conn_builder(send_connected, send_disconnected, send_connect_error, app);
 
         if let Some(register_callbacks) = self.register_events {
-            register_callbacks(self, app, conn.db());
+            register_callbacks(self, app, conn.db(), conn.reducers());
         }
 
         app.insert_resource(StdbConnection::new(conn));

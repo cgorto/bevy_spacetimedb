@@ -47,7 +47,7 @@ App::new()
                 conn.run_threaded();
                 conn
             })
-            /// Register the events you want to receive (example: players and enemies inserted, updated, deleted)
+            /// Register the events you want to receive (example: players and enemies inserted, updated, deleted) and your reducers
             .with_events(|plugin, app, db| {
                 plugin
                     .on_insert(app, db.players())
@@ -55,7 +55,17 @@ App::new()
                     .on_delete(app, db.players())
                     .on_insert(app, db.enemies())
                     .on_update(app, db.enemies())
-                    .on_delete(app, db.enemies())
+                    .on_delete(app, db.enemies());
+
+                let send_register_player = plugin.reducer_event::<RegisterPlayerEvent>(app);
+                reducers.on_register_player(move |ctx, reducer_arg_1, reducer_arg_2| {
+                    send_register_player
+                        .send(ReducerResultEvent::new(RegisterPlayerEvent {
+                            event: ctx.event.clone(),
+                            // You can add any data you want here, even reducer arguments
+                        }))
+                        .unwrap();
+                    });
             }),
     );
 ```

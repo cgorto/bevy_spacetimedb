@@ -41,3 +41,17 @@ pub struct UpdateEvent<T> {
     /// The new row.
     pub new: T,
 }
+
+/// An event that is triggered when a reducer is invoked.
+#[derive(Event, Debug)]
+pub struct ReducerResultEvent<T> {
+    /// The result of the reducer invocation.
+    pub result: T,
+}
+
+impl<T> ReducerResultEvent<T> {
+    /// Creates a new reducer result event.
+    pub fn new(result: T) -> Self {
+        Self { result }
+    }
+}
