@@ -1,4 +1,5 @@
 use bevy::prelude::EventReader;
+use spacetimedb_sdk::ReducerEvent;
 
 use crate::{DeleteEvent, InsertEvent, InsertUpdateEvent, UpdateEvent};
 
@@ -13,3 +14,6 @@ pub type ReadDeleteEvent<'w, 's, T> = EventReader<'w, 's, DeleteEvent<T>>;
 
 /// A type alias for a Bevy event reader for InsertUpdateEvent<T>.
 pub type ReadInsertUpdateEvent<'w, 's, T> = EventReader<'w, 's, InsertUpdateEvent<T>>;
+
+/// A type alias for a Bevy event reader for ReducerEvent<T>.
+pub type ReadReducerEvent<'w, 's, T> = EventReader<'w, 's, ReducerEvent<T>>;
