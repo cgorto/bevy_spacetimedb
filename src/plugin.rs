@@ -4,8 +4,9 @@ use bevy::app::{App, Plugin};
 use spacetimedb_sdk::{DbContext, Table, TableWithPrimaryKey};
 
 use crate::{
-    DeleteEvent, InsertEvent, ReducerResultEvent, StdbConnectedEvent, StdbConnection,
-    StdbConnectionErrorEvent, StdbDisconnectedEvent, UpdateEvent, channel_receiver::AppExtensions,
+    DeleteEvent, InsertEvent, InsertUpdateEvent, ReducerResultEvent, StdbConnectedEvent,
+    StdbConnection, StdbConnectionErrorEvent, StdbDisconnectedEvent, UpdateEvent,
+    channel_receiver::AppExtensions,
 };
 
 /// A function that builds a connection to the database.
@@ -83,6 +84,35 @@ impl<TConnection: DbContext> StdbPlugin<TConnection> {
             let event = UpdateEvent {
                 old: old.clone(),
                 new: new.clone(),
+            };
+            send.send(event).unwrap();
+        });
+
+        self
+    }
+
+    /// Register a Bevy event of type InsertUpdateEvent<TRow> for the `on_insert` and `on_update` events on the provided table.
+    pub fn on_insert_update<TRow, TTable>(&self, app: &mut App, table: TTable) -> &Self
+    where
+        TRow: Send + Sync + Clone + 'static,
+        TTable: Table<Row = TRow> + TableWithPrimaryKey<Row = TRow>,
+    {
+        let (send, recv) = channel::<InsertUpdateEvent<TRow>>();
+        app.add_event_channel(recv);
+
+        let send_update = send.clone();
+        table.on_update(move |_ctx, old, new| {
+            let event = InsertUpdateEvent {
+                old: Some(old.clone()),
+                new: new.clone(),
+            };
+            send_update.send(event).unwrap();
+        });
+
+        table.on_insert(move |_ctx, row| {
+            let event = InsertUpdateEvent {
+                old: None,
+                new: row.clone(),
             };
             send.send(event).unwrap();
         });

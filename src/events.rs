@@ -42,6 +42,15 @@ pub struct UpdateEvent<T> {
     pub new: T,
 }
 
+/// An event that is triggered when a row is inserted or updated in a table.
+#[derive(Event)]
+pub struct InsertUpdateEvent<T> {
+    /// The previous value of the row if it was updated.
+    pub old: Option<T>,
+    /// The new value of the row or the inserted value.
+    pub new: T,
+}
+
 /// An event that is triggered when a reducer is invoked.
 #[derive(Event, Debug)]
 pub struct ReducerResultEvent<T> {
