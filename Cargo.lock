@@ -1069,7 +1069,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_spacetimedb"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "bevy",
  "spacetimedb-sdk",
