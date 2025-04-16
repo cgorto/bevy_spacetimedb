@@ -5,8 +5,8 @@ use bevy_spacetimedb::{
 };
 use spacetimedb_sdk::{ReducerEvent, Table};
 use stdb::{
-    DbConnection, GameServersTableAccess, Planet, PlanetsTableAccess, Player, PlayersTableAccess,
-    Reducer, StarSystemsTableAccess, gs_register, player_register,
+    DbConnection, GameServersTableAccess, PlanetsTableAccess, Player, PlayersTableAccess, Reducer,
+    StarSystemsTableAccess, gs_register, player_register,
 };
 
 mod stdb;

@@ -7,6 +7,7 @@ use syn::{
     punctuated::Punctuated,
 };
 
+#[derive(Debug)]
 struct TableEntry {
     table: Ident,
     has_update: bool,
@@ -18,7 +19,7 @@ impl Parse for TableEntry {
         if input.peek(Ident) {
             return Ok(TableEntry {
                 table: input.parse()?,
-                has_update: false,
+                has_update: true,
             });
         }
 
@@ -28,19 +29,21 @@ impl Parse for TableEntry {
 
         let table: Ident = content.parse()?;
 
-        let has_update = if content.peek(Token![,]) {
+        let no_update_flag = if content.peek(Token![,]) {
             content.parse::<Token![,]>()?;
             let flag: Ident = content.parse()?;
             if flag != "no_update" {
                 return Err(syn::Error::new_spanned(flag, "Expected `no_update`"));
             }
-
-            false
+            Some(flag)
         } else {
-            true
+            None
         };
 
-        Ok(TableEntry { table, has_update })
+        Ok(TableEntry {
+            table,
+            has_update: no_update_flag.is_none(),
+        })
     }
 }
 
@@ -77,6 +80,7 @@ pub fn tables(input: TokenStream) -> TokenStream {
         if entry.has_update {
             output.extend(quote! {
                 plugin.on_update(app, db.#table());
+                plugin.on_insert_update(app, db.#table());
             });
         }
     }
