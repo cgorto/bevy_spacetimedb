@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["bevy_spacetimedb", "macros", "example_app"]
+
+[workspace.dependencies]
+bevy = { version = "0.15.3" }
+spacetimedb-sdk = { version = "1.1.0" }

@@ -8,8 +8,8 @@ edition = "2024"
 license = "Apache-2.0"
 
 [dependencies]
-spacetimedb-sdk = "1.0.1"
-bevy = "0.15.3"
+spacetimedb-sdk = { workspace = true }
+bevy = { workspace = true }
 bevy_spacetimedb_macros = "0.1.1"
 
 [[example]]

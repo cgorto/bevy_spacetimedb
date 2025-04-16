@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 bevy_spacetimedb = { path = "../bevy_spacetimedb" }
-bevy = "0.15.3"
-spacetimedb-sdk = "1.0.1"
+bevy = { workspace = true }
+spacetimedb-sdk = { workspace = true }
