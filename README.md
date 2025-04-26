@@ -19,6 +19,15 @@ This plugin will provide you with:
 
 Check the example app in `/example_app` for a complete example of how to use the plugin.
 
+## Bevy versions
+
+This plugin is compatible with Bevy 0.15.x and 0.16.x, the latest version of the plugin is compatible with Bevy 0.16.x.
+
+| bevy_spacetimedb version | Bevy version |
+| ------------------------ | ------------ |
+| <= 0.3.x                 | 0.15.x       |
+| >= 0.4.x                 | 0.16.x       |
+
 ## Usage
 
 0. Add to your crate: `cargo add bevy_spacetimedb`
