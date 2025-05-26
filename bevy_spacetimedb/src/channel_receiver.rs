@@ -16,10 +16,9 @@ pub trait AppExtensions {
 
 impl AppExtensions for App {
     fn add_event_channel<T: Event>(&mut self, receiver: Receiver<T>) -> &mut Self {
-        assert!(
-            !self.world().contains_resource::<ChannelReceiver<T>>(),
-            "this SpacetimeDB event channel is already initialized",
-        );
+        if self.world().contains_resource::<ChannelReceiver<T>>() {
+            return self;
+        }
 
         self.add_event::<T>();
         self.add_systems(PreUpdate, channel_to_event::<T>);
