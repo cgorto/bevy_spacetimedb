@@ -81,7 +81,7 @@ where
 
         table.on_insert(move |_ctx, row| {
             let event = InsertEvent { row: row.clone() };
-            sender.send(event).unwrap();
+            let _ = sender.send(event);
         });
 
         self
@@ -108,7 +108,7 @@ where
 
         table.on_delete(move |_ctx, row| {
             let event = DeleteEvent { row: row.clone() };
-            sender.send(event).unwrap();
+            let _ = sender.send(event);
         });
 
         self
@@ -139,7 +139,7 @@ where
                 old: old.clone(),
                 new: new.clone(),
             };
-            sender.send(event).unwrap();
+            let _ = sender.send(event);
         });
 
         self
@@ -171,7 +171,7 @@ where
                 old: Some(old.clone()),
                 new: new.clone(),
             };
-            send_update.send(event).unwrap();
+            let _ = send_update.send(event);
         });
 
         table.on_insert(move |_ctx, row| {
@@ -179,7 +179,7 @@ where
                 old: None,
                 new: row.clone(),
             };
-            send.send(event).unwrap();
+            let _ = send.send(event);
         });
 
         self
