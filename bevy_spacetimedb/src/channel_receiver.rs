@@ -9,12 +9,14 @@ use std::sync::mpsc::Receiver;
 #[derive(Resource, Deref, DerefMut)]
 struct ChannelReceiver<T>(Mutex<Receiver<T>>);
 
-pub trait AppExtensions {
-    // Allows you to create bevy events using mpsc Sender
+/// Allows to register an event channel backed by a `mpsc::Receiver<T>`.
+/// This is useful in multithreaded applications where you want to send events from a different thread
+pub trait AddEventChannelAppExtensions {
+    /// Allows you to create bevy events using mpsc Sender
     fn add_event_channel<T: Event>(&mut self, receiver: Receiver<T>) -> &mut Self;
 }
 
-impl AppExtensions for App {
+impl AddEventChannelAppExtensions for App {
     fn add_event_channel<T: Event>(&mut self, receiver: Receiver<T>) -> &mut Self {
         assert!(
             !self.world().contains_resource::<ChannelReceiver<T>>(),

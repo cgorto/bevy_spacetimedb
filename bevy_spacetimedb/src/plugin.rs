@@ -15,7 +15,7 @@ use spacetimedb_sdk::{DbContext, Table, TableWithPrimaryKey};
 use crate::{
     DeleteEvent, InsertEvent, InsertUpdateEvent, ReducerResultEvent, StdbConnectedEvent,
     StdbConnection, StdbConnectionErrorEvent, StdbDisconnectedEvent, UpdateEvent,
-    channel_receiver::AppExtensions,
+    channel_receiver::AddEventChannelAppExtensions,
 };
 
 /// A function that registers callbacks for events.

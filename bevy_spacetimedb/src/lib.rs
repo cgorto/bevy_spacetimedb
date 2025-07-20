@@ -10,6 +10,7 @@ mod stdb_connection;
 
 pub use aliases::*;
 pub use bevy_spacetimedb_macros::*;
+pub use channel_receiver::AddEventChannelAppExtensions;
 pub use events::*;
 pub use plugin::*;
 pub use stdb_connection::*;
