@@ -1,9 +1,14 @@
 use bevy::prelude::Event;
-use spacetimedb_sdk::Error;
+use spacetimedb_sdk::{Error, Identity};
 
 /// An event that is triggered when a connection to SpacetimeDB is established.
 #[derive(Event)]
-pub struct StdbConnectedEvent;
+pub struct StdbConnectedEvent {
+    /// The `Identity`` of the successful connection.
+    pub identity: Identity,
+    /// The private access token which can be used to later re-authenticate as the same `Identity`.
+    pub access_token: String,
+}
 
 /// An event that is triggered when a connection to SpacetimeDB is lost.
 #[derive(Event)]

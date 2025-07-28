@@ -43,8 +43,13 @@ pub fn main() {
                                 .send(StdbDisconnectedEvent { err })
                                 .unwrap();
                         })
-                        .on_connect(move |_ctx, _id, _c| {
-                            send_connected.send(StdbConnectedEvent {}).unwrap();
+                        .on_connect(move |_ctx, id, token| {
+                            send_connected
+                                .send(StdbConnectedEvent {
+                                    identity: id,
+                                    access_token: token.to_string(),
+                                })
+                                .unwrap();
                         })
                         .build()
                         .expect("SpacetimeDB connection failed");
@@ -84,8 +89,8 @@ fn on_connected(
     mut events: EventReader<StdbConnectedEvent>,
     stdb: Res<StdbConnection<DbConnection>>,
 ) {
-    for _ in events.read() {
-        info!("Connected to SpacetimeDB");
+    for ev in events.read() {
+        info!("Connected to SpacetimeDB with identity: {}", ev.identity.to_hex());
 
         // Call any reducers
         stdb.reducers().player_register(1).unwrap();
