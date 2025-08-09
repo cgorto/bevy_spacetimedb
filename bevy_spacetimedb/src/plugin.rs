@@ -1,253 +1,156 @@
-use std::{
-    any::{Any, TypeId},
-    sync::{
-        Mutex,
-        mpsc::{Sender, channel},
-    },
+use crate::{
+    AddEventChannelAppExtensions, StdbConnectedEvent, StdbConnection, StdbConnectionErrorEvent,
+    StdbDisconnectedEvent,
 };
-
 use bevy::{
     app::{App, Plugin},
     platform::collections::HashMap,
 };
-use spacetimedb_sdk::{DbContext, Table, TableWithPrimaryKey};
-
-use crate::{
-    DeleteEvent, InsertEvent, InsertUpdateEvent, ReducerResultEvent, StdbConnectedEvent,
-    StdbConnection, StdbConnectionErrorEvent, StdbDisconnectedEvent, UpdateEvent,
-    channel_receiver::AddEventChannelAppExtensions,
+use spacetimedb_sdk::{DbConnectionBuilder, DbContext};
+use std::{
+    any::{Any, TypeId},
+    sync::{Mutex, mpsc::channel},
+    thread::JoinHandle,
 };
 
-/// A function that registers callbacks for events.
-pub type FnRegisterCallbacks<T, C> =
-    fn(&StdbPlugin<T, C>, &mut App, &<T as DbContext>::DbView, &<T as DbContext>::Reducers);
-
-/// A plugin for SpacetimeDB connections.
-pub struct StdbPlugin<T: DbContext, C>
-where
-    C: Fn(
-        Sender<StdbConnectedEvent>,
-        Sender<StdbDisconnectedEvent>,
-        Sender<StdbConnectionErrorEvent>,
-        &mut App,
-    ) -> T,
-{
-    /// A function that builds a connection to the database.
-    connection_builder: Option<C>,
-    register_events: Option<FnRegisterCallbacks<T, C>>,
-    event_senders: Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>,
+/// The plugin for connecting SpacetimeDB with your bevy application.
+pub struct StdbPlugin<
+    C: spacetimedb_sdk::__codegen::DbConnection<Module = M> + DbContext,
+    M: spacetimedb_sdk::__codegen::SpacetimeModule<DbConnection = C>,
+> {
+    module_name: Option<String>,
+    uri: Option<String>,
+    token: Option<String>,
+    run_fn: Option<fn(&C) -> JoinHandle<()>>,
+    // Stores Senders for registered table events.
+    pub(crate) event_senders: Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>,
+    pub(crate) table_registers: Vec<
+        Box<dyn Fn(&StdbPlugin<C, M>, &mut App, &'static <C as DbContext>::DbView) + Send + Sync>,
+    >,
+    pub(crate) reducer_registers:
+        Vec<Box<dyn Fn(&mut App, &<C as DbContext>::Reducers) + Send + Sync>>,
 }
 
-impl<TConnection: DbContext, C> StdbPlugin<TConnection, C>
-where
-    C: Fn(
-        Sender<StdbConnectedEvent>,
-        Sender<StdbDisconnectedEvent>,
-        Sender<StdbConnectionErrorEvent>,
-        &mut App,
-    ) -> TConnection,
-{
-    /// Adds your connection builder function, it will be called when the plugin is built.
-    pub fn with_connection(mut self, build_connection: C) -> Self {
-        self.connection_builder = Some(build_connection);
-        self
-    }
-
-    /// Adds a function to register all events required by a Bevy application
-    pub fn with_events(mut self, register_callbacks: FnRegisterCallbacks<TConnection, C>) -> Self {
-        self.register_events = Some(register_callbacks);
-        self
-    }
-
-    /// Register a Bevy event of type InsertEvent<TRow> for the `on_insert` event on the provided table.
-    pub fn on_insert<TRow>(&self, app: &mut App, table: impl Table<Row = TRow>) -> &Self
-    where
-        TRow: Send + Sync + Clone + 'static,
-    {
-        let type_id = TypeId::of::<InsertEvent<TRow>>();
-
-        let mut map = self.event_senders.lock().unwrap();
-
-        let sender = map
-            .entry(type_id)
-            .or_insert_with(|| {
-                let (send, recv) = channel::<InsertEvent<TRow>>();
-                app.add_event_channel(recv);
-                Box::new(send)
-            })
-            .downcast_ref::<Sender<InsertEvent<TRow>>>()
-            .expect("Sender type mismatch")
-            .clone();
-
-        table.on_insert(move |_ctx, row| {
-            let event = InsertEvent { row: row.clone() };
-            let _ = sender.send(event);
-        });
-
-        self
-    }
-
-    /// Register a Bevy event of type DeleteEvent<TRow> for the `on_delete` event on the provided table.
-    pub fn on_delete<TRow>(&self, app: &mut App, table: impl Table<Row = TRow>) -> &Self
-    where
-        TRow: Send + Sync + Clone + 'static,
-    {
-        let type_id = TypeId::of::<DeleteEvent<TRow>>();
-
-        let mut map = self.event_senders.lock().unwrap();
-        let sender = map
-            .entry(type_id)
-            .or_insert_with(|| {
-                let (send, recv) = channel::<DeleteEvent<TRow>>();
-                app.add_event_channel(recv);
-                Box::new(send)
-            })
-            .downcast_ref::<Sender<DeleteEvent<TRow>>>()
-            .expect("Sender type mismatch")
-            .clone();
-
-        table.on_delete(move |_ctx, row| {
-            let event = DeleteEvent { row: row.clone() };
-            let _ = sender.send(event);
-        });
-
-        self
-    }
-
-    /// Register a Bevy event of type UpdateEvent<TRow> for the `on_update` event on the provided table.
-    pub fn on_update<TRow, TTable>(&self, app: &mut App, table: TTable) -> &Self
-    where
-        TRow: Send + Sync + Clone + 'static,
-        TTable: Table<Row = TRow> + TableWithPrimaryKey<Row = TRow>,
-    {
-        let type_id = TypeId::of::<UpdateEvent<TRow>>();
-
-        let mut map = self.event_senders.lock().unwrap();
-        let sender = map
-            .entry(type_id)
-            .or_insert_with(|| {
-                let (send, recv) = channel::<UpdateEvent<TRow>>();
-                app.add_event_channel(recv);
-                Box::new(send)
-            })
-            .downcast_ref::<Sender<UpdateEvent<TRow>>>()
-            .expect("Sender type mismatch")
-            .clone();
-
-        table.on_update(move |_ctx, old, new| {
-            let event = UpdateEvent {
-                old: old.clone(),
-                new: new.clone(),
-            };
-            let _ = sender.send(event);
-        });
-
-        self
-    }
-
-    /// Register a Bevy event of type InsertUpdateEvent<TRow> for the `on_insert` and `on_update` events on the provided table.
-    pub fn on_insert_update<TRow, TTable>(&self, app: &mut App, table: TTable) -> &Self
-    where
-        TRow: Send + Sync + Clone + 'static,
-        TTable: Table<Row = TRow> + TableWithPrimaryKey<Row = TRow>,
-    {
-        let type_id = TypeId::of::<InsertUpdateEvent<TRow>>();
-
-        let mut map = self.event_senders.lock().unwrap();
-        let send = map
-            .entry(type_id)
-            .or_insert_with(|| {
-                let (send, recv) = channel::<InsertUpdateEvent<TRow>>();
-                app.add_event_channel(recv);
-                Box::new(send)
-            })
-            .downcast_ref::<Sender<InsertUpdateEvent<TRow>>>()
-            .expect("Sender type mismatch")
-            .clone();
-
-        let send_update = send.clone();
-        table.on_update(move |_ctx, old, new| {
-            let event = InsertUpdateEvent {
-                old: Some(old.clone()),
-                new: new.clone(),
-            };
-            let _ = send_update.send(event);
-        });
-
-        table.on_insert(move |_ctx, row| {
-            let event = InsertUpdateEvent {
-                old: None,
-                new: row.clone(),
-            };
-            let _ = send.send(event);
-        });
-
-        self
-    }
-
-    /// Register a Bevy event of type ReducerResultEvent<TReducer> for the `on_<reducer_name>` event on the provided reducers.
-    pub fn reducer_event<TReducer>(&self, app: &mut App) -> Sender<ReducerResultEvent<TReducer>>
-    where
-        TReducer: Send + Sync + Clone + 'static,
-    {
-        let (send, recv) = channel::<ReducerResultEvent<TReducer>>();
-        app.add_event_channel(recv);
-
-        send
-    }
-}
-
-impl<T: DbContext, C> Default for StdbPlugin<T, C>
-where
-    C: Send
-        + Sync
-        + 'static
-        + Fn(
-            Sender<StdbConnectedEvent>,
-            Sender<StdbDisconnectedEvent>,
-            Sender<StdbConnectionErrorEvent>,
-            &mut App,
-        ) -> T,
+impl<
+    C: spacetimedb_sdk::__codegen::DbConnection<Module = M> + DbContext,
+    M: spacetimedb_sdk::__codegen::SpacetimeModule<DbConnection = C>,
+> Default for StdbPlugin<C, M>
 {
     fn default() -> Self {
         Self {
-            connection_builder: None,
-            register_events: None,
-            event_senders: Mutex::new(HashMap::new()),
+            module_name: Default::default(),
+            uri: Default::default(),
+            token: Default::default(),
+            run_fn: Option::default(),
+            event_senders: Mutex::default(),
+            table_registers: Vec::default(),
+            reducer_registers: Vec::default(),
         }
     }
 }
 
-impl<T: DbContext + Send + Sync + 'static, C> Plugin for StdbPlugin<T, C>
-where
-    C: Send
-        + Sync
-        + 'static
-        + Fn(
-            Sender<StdbConnectedEvent>,
-            Sender<StdbDisconnectedEvent>,
-            Sender<StdbConnectionErrorEvent>,
-            &mut App,
-        ) -> T,
+impl<
+    C: spacetimedb_sdk::__codegen::DbConnection<Module = M> + DbContext + Send + Sync,
+    M: spacetimedb_sdk::__codegen::SpacetimeModule<DbConnection = C>,
+> StdbPlugin<C, M>
+{
+    /// The function that the connection will run with. The recommended function is `DbConnection::run_threaded`.
+    ///
+    /// Other function are not tested, they may not work.
+    pub fn with_run_fn(mut self, run_fn: fn(&C) -> JoinHandle<()>) -> Self {
+        self.run_fn = Some(run_fn);
+        self
+    }
+
+    /// Set the name or identity of the remote module.
+    pub fn with_module_name(mut self, name: impl Into<String>) -> Self {
+        self.module_name = Some(name.into());
+        self
+    }
+
+    /// Set the URI of the SpacetimeDB host which is running the remote module.
+    ///
+    /// The URI must have either no scheme or one of the schemes `http`, `https`, `ws` or `wss`.
+    pub fn with_uri(mut self, uri: impl Into<String>) -> Self {
+        self.uri = Some(uri.into());
+        self
+    }
+
+    /// Supply a token with which to authenticate with the remote database.
+    ///
+    /// `token` should be an OpenID Connect compliant JSON Web Token.
+    ///
+    /// If this method is not invoked, or `None` is supplied,
+    /// the SpacetimeDB host will generate a new anonymous `Identity`.
+    ///
+    /// If the passed token is invalid or rejected by the host,
+    /// the connection will fail asynchrnonously.
+    pub fn with_token(mut self, token: impl Into<String>) -> Self {
+        self.token = Some(token.into());
+        self
+    }
+}
+
+impl<
+    C: spacetimedb_sdk::__codegen::DbConnection<Module = M> + DbContext + Sync,
+    M: spacetimedb_sdk::__codegen::SpacetimeModule<DbConnection = C>,
+> Plugin for StdbPlugin<C, M>
 {
     fn build(&self, app: &mut App) {
+        self.uri
+            .clone()
+            .expect("No uri set for StdbPlugin. Set it with the with_uri() function");
+        self.module_name.clone().expect(
+            "No module name set for StdbPlugin. Set it with the with_module_name() function",
+        );
+
         let (send_connected, recv_connected) = channel::<StdbConnectedEvent>();
         let (send_disconnected, recv_disconnected) = channel::<StdbDisconnectedEvent>();
         let (send_connect_error, recv_connect_error) = channel::<StdbConnectionErrorEvent>();
-
         app.add_event_channel::<StdbConnectionErrorEvent>(recv_connect_error)
             .add_event_channel::<StdbConnectedEvent>(recv_connected)
             .add_event_channel::<StdbDisconnectedEvent>(recv_disconnected);
 
-        let conn_builder = self
-            .connection_builder
-            .as_ref()
-            .expect("Connection builder is not set, use with_connection() method");
-        let conn = conn_builder(send_connected, send_disconnected, send_connect_error, app);
+        // FIXME App should not crash if intial connection fails.
+        let conn = DbConnectionBuilder::<M>::new()
+            .with_module_name(self.module_name.clone().unwrap())
+            .with_uri(self.uri.clone().unwrap())
+            .with_token(self.token.clone())
+            .on_connect_error(move |_ctx, err| {
+                send_connect_error
+                    .send(StdbConnectionErrorEvent { err })
+                    .unwrap();
+            })
+            .on_disconnect(move |_ctx, err| {
+                send_disconnected
+                    .send(StdbDisconnectedEvent { err })
+                    .unwrap();
+            })
+            .on_connect(move |_ctx, id, token| {
+                send_connected
+                    .send(StdbConnectedEvent {
+                        identity: id,
+                        access_token: token.to_string(),
+                    })
+                    .unwrap();
+            })
+            .build()
+            .expect("Failed to build connection");
 
-        if let Some(register_callbacks) = self.register_events {
-            register_callbacks(self, app, conn.db(), conn.reducers());
+        // A 'static ref is needed for the connection the register tables and reducers
+        // This is fine because only a small and fixed amount of memory will be leaked
+        // Because conn has to live until the end of the program anyways, not using it would not make for any performance improvements.
+        let conn = Box::<C>::leak(Box::new(conn));
+
+        for table_register in self.table_registers.iter() {
+            table_register(self, app, conn.db());
         }
+        for reducer_register in self.reducer_registers.iter() {
+            reducer_register(app, conn.reducers());
+        }
+
+        let run_fn = self.run_fn.expect("No run function specified!");
+        run_fn(&conn);
 
         app.insert_resource(StdbConnection::new(conn));
     }
