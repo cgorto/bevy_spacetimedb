@@ -13,7 +13,7 @@ struct ChannelReceiver<T>(Mutex<Receiver<T>>);
 /// This is useful in multithreaded applications where you want to send events from a different thread
 pub trait AddEventChannelAppExtensions {
     /// Allows you to create bevy events using mpsc Sender
-    fn add_event_channel<T: Event>(&mut self, receiver: Receiver<T>) -> &mut Self;
+    fn add_event_channel<T: Event + BufferedEvent>(&mut self, receiver: Receiver<T>) -> &mut Self;
 }
 
 impl AddEventChannelAppExtensions for App {
