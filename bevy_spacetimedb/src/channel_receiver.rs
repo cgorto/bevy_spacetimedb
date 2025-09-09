@@ -17,7 +17,7 @@ pub trait AddEventChannelAppExtensions {
 }
 
 impl AddEventChannelAppExtensions for App {
-    fn add_event_channel<T: Event>(&mut self, receiver: Receiver<T>) -> &mut Self {
+    fn add_event_channel<T: Event + BufferedEvent>(&mut self, receiver: Receiver<T>) -> &mut Self {
         assert!(
             !self.world().contains_resource::<ChannelReceiver<T>>(),
             "this SpacetimeDB event channel is already initialized",
@@ -30,7 +30,7 @@ impl AddEventChannelAppExtensions for App {
     }
 }
 
-fn channel_to_event<T: 'static + Send + Sync + Event>(
+fn channel_to_event<T: 'static + Send + Sync + Event + BufferedEvent>(
     receiver: Res<ChannelReceiver<T>>,
     mut writer: EventWriter<T>,
 ) {
