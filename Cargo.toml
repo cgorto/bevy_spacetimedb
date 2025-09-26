@@ -4,5 +4,5 @@ members = ["bevy_spacetimedb", "macros", "example_app"]
 
 [workspace.dependencies]
 
-bevy = { version = "0.17.0-rc.2", branch = "main" }
+bevy = { version = "0.17.0-rc.2"}
 spacetimedb-sdk = { version = "1.4.0" }
